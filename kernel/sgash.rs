@@ -69,7 +69,7 @@ pub unsafe fn parsekey(x: char) {
     match x { 
 	13		=>	{ 
 	    putstr(&"\n");
-	    drawstr(&"\n");
+	    drawstr(&"\nsgash>");
 	}
 	127		=>	{ 
 	    putchar('');
