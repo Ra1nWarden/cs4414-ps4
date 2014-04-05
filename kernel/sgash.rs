@@ -8,6 +8,7 @@ use kernel::*;
 use super::super::platform::*;
 use kernel::memory::Allocator;
 
+
 pub static mut buff_str : c_string = c_string {
     start_ptr: 0 as *mut u8,
     next_index: 0,
@@ -35,6 +36,7 @@ pub unsafe fn drawstr(msg: &str) {
     for c in slice::iter(as_bytes(msg)) {
 	drawchar(*c as char);
     }
+    //super::super::io::set_fg(0x00FFAAFF);
 }
 
 unsafe fn drawchar(x: char)
@@ -63,6 +65,8 @@ unsafe fn backspace()
 }
 
 pub unsafe fn interpret(mut cmd: c_string) {
+    //let mut cmd = command.splitn(' ', 1).nth(0).expect("no command");
+    //let mut cmd = command.split(0);
     if (cmd.eq(&"echo")) {
         drawstr(&"echo");
     }
@@ -87,10 +91,36 @@ pub unsafe fn interpret(mut cmd: c_string) {
     else if (cmd.eq(&"wr")) {
         drawstr(&"wr");
     }
+/*    else if (cmd.eq(&"change")){
+    	drawstr(&"change");
+	let mut second_command = blah blah blah;
+	let mut third_command = blah blah blah;
+	match third_command {
+	     "black"	=> { third_command = "0x000000"}
+	     "red"	=> { third_command = "0xFF0000"}
+	     "orange"	=> { third_command = "0XFF8000"}
+	     "yellow"	=> { third_command = "0xFFFF00"}
+	     "white"	=> { third_command = "0xFFFFFF"}
+	     "blue"	=> { third_command = "0x0000FF"}
+	     _		=> { continue;}
+	}
+	match second_command {
+	     "-b"	=> { super::super::io::set_bg(third_command)}	//change background color
+	     "-f"	=> { super::super::io::set_fg(third_command)}	//change letter color
+			
+	     "-c"	=> { super::super::io::set_cursor_color(third_command)}	//change cursor color
+	     ""		=> { continue; }
+	}
+    }
+*/
     else {
         drawstr(&"invalid command: ");
         cmd.print();
     }
+}
+
+pub unsafe fn change(cmd: &str){
+
 }
 
 pub unsafe fn parsekey(x: char) {
@@ -246,4 +276,27 @@ impl c_string {
         }
         result
     }
+
+    unsafe fn split(&self, delim: char) -> (c_string, c_string) {
+		let mut selfp: uint = self.start_ptr as uint;
+		let mut first = c_string::new(256);
+		let mut second = c_string::new(256);
+		let mut found = false;
+		loop {
+			if (*(selfp as *char) == '\0') { 
+				return (first, second);
+			}
+			else if (*(selfp as *u8) == delim as u8) {
+				found = true;
+			}
+			else if (!found) {
+				first.addChar(*(selfp as *u8));
+			}
+			else if (found) {
+				second.addChar(*(selfp as *u8));
+			};
+			selfp += 1;
+		}
+    }
+
 }
