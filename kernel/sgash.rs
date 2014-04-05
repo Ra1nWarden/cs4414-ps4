@@ -32,14 +32,9 @@ fn putstr(msg: &str) {
 }
 
 pub unsafe fn drawstr(msg: &str) {
-    let old_fg = super::super::io::FG_COLOR;
-    let mut x: u32 = 0x6699AAFF;
     for c in slice::iter(as_bytes(msg)) {
-	x = (x << 8) + (x >> 24);        
-	super::super::io::set_fg(x);
 	drawchar(*c as char);
     }
-    super::super::io::set_fg(old_fg);
 }
 
 unsafe fn drawchar(x: char)
@@ -67,6 +62,37 @@ unsafe fn backspace()
     io::draw_cursor();
 }
 
+pub unsafe fn interpret(mut cmd: c_string) {
+    if (cmd.eq(&"echo")) {
+        drawstr(&"echo");
+    }
+    else if (cmd.eq(&"ls")) {
+        drawstr(&"ls");
+    }
+    else if (cmd.eq(&"cat")) {
+        drawstr(&"cat");
+    }
+    else if (cmd.eq(&"cd")) {
+        drawstr(&"cd");
+    }
+    else if (cmd.eq(&"rm")) {
+        drawstr(&"rm");
+    }
+    else if (cmd.eq(&"mkdir")) {
+        drawstr(&"mkdir");
+    }
+    else if (cmd.eq(&"pwd")) {
+        drawstr(&"pwd");
+    }
+    else if (cmd.eq(&"wr")) {
+        drawstr(&"wr");
+    }
+    else {
+        drawstr(&"invalid command: ");
+        cmd.print();
+    }
+}
+
 pub unsafe fn parsekey(x: char) {
     let x = x as u8;
     // Set this to false to learn the keycodes of various keys!
@@ -76,7 +102,7 @@ pub unsafe fn parsekey(x: char) {
 	13		=>	{ 
             putstr(&"\n");
             drawstr(&"\n");
-            buff_str.print();
+            interpret(buff_str);
 	    putstr(&"\nsgash>");
 	    drawstr(&"\nsgash>");
             buff_str.clear();
@@ -204,5 +230,20 @@ impl c_string {
             }
             i += 1;
         }
+    }
+    unsafe fn eq(&mut self, cmp_str: &str) -> bool{
+        let mut running_index = self.start_ptr;
+        let mut result = true;
+        for itr in slice::iter(as_bytes(cmp_str)) {
+            if (*itr as char != *running_index as char) {
+                result = false;
+                break;
+            }
+            running_index = (running_index as uint + 1) as *mut u8;
+        }
+        if ((*running_index) as char != '\0') {
+            result = false;
+        }
+        result
     }
 }
