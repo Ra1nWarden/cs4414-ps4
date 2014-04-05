@@ -8,6 +8,12 @@ use kernel::*;
 use super::super::platform::*;
 use kernel::memory::Allocator;
 
+pub static mut buff_str : c_string = c_string {
+    start_ptr: 0 as *mut u8,
+    next_index: 0,
+    max_length: 0
+};
+
 pub fn putchar(key: char) {
     unsafe {
 	/*
@@ -29,7 +35,7 @@ pub unsafe fn drawstr(msg: &str) {
     let old_fg = super::super::io::FG_COLOR;
     let mut x: u32 = 0x6699AAFF;
     for c in slice::iter(as_bytes(msg)) {
-	x = (x << 8) + (x >> 24); 
+	x = (x << 8) + (x >> 24);        
 	super::super::io::set_fg(x);
 	drawchar(*c as char);
     }
@@ -68,19 +74,25 @@ pub unsafe fn parsekey(x: char) {
 
     match x { 
 	13		=>	{ 
-	    putstr(&"\n");
+            putstr(&"\n");
+            drawstr(&"\n");
+            buff_str.print();
+	    putstr(&"\nsgash>");
 	    drawstr(&"\nsgash>");
+            buff_str.clear();
 	}
 	127		=>	{ 
 	    putchar('');
 	    putchar(' ');
 	    putchar(''); 
 	    backspace();
+            buff_str.backSpace();
 	}
 	_		=>	{ 
 	    if io::CURSOR_X < io::SCREEN_WIDTH-io::CURSOR_WIDTH {
 		putchar(x as char);
 		drawchar(x as char);
+                buff_str.addChar(x as u8);
 	    }
 	}
     }
@@ -131,6 +143,66 @@ fn screen() {
 }
 
 pub unsafe fn init() {
+    buff_str = c_string::new(100);
     screen();
+    putstr(&"sgash>");
 }
 
+struct c_string {
+    start_ptr: *mut u8,
+    next_index: uint,
+    max_length: uint
+}
+
+impl c_string {
+    pub unsafe fn new(size: uint) -> c_string {
+        let (start, length) = heap.alloc(size+1);
+        let retVal = c_string {
+            start_ptr: start,
+            next_index: 0,
+            max_length: length
+        };
+        *((retVal.start_ptr as uint + retVal.next_index) as *mut char) = '\0';
+        retVal
+    }
+    unsafe fn addChar(&mut self, c: u8) -> bool {
+        if (self.next_index == self.max_length) {
+            false
+        }
+        else {
+            *((self.start_ptr as uint + self.next_index) as *mut char) = c as char;
+            self.next_index += 1;
+            *((self.start_ptr as uint + self.next_index) as *mut char) = '\0';
+            true
+        }
+    }
+    unsafe fn clear(&mut self) -> bool {
+        self.next_index = 0;
+        *(self.start_ptr as *mut char) = '\0';
+        true
+    }
+    unsafe fn backSpace(&mut self) -> bool {
+        if (self.next_index == 0) {
+            false
+        }
+        else {
+            self.next_index -= 1;
+            *((self.start_ptr as uint + self.next_index) as *mut char) = '\0';
+            true
+        }
+    }
+    unsafe fn print(&mut self) {
+        let mut i : uint = 0;
+        while (i < self.max_length) {
+            let c = (self.start_ptr as uint + i) as *mut char;
+            if (*c == '\0') {
+                break;
+            }
+            else {
+                putchar(*c);
+                drawchar(*c);
+            }
+            i += 1;
+        }
+    }
+}

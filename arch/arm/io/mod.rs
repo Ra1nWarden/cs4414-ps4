@@ -72,8 +72,8 @@ pub unsafe fn init(width: u32, height: u32)
 
     }
     // color BLUE+GREEN+RED
-    set_bg(0x0000FF); // background
-    set_fg(0xFF0000); // letters
+    set_bg(0x000000); // background
+    set_fg(0x00FF00); // letters
     set_cursor_color(0x00FF00); // cursor
     fill_bg();	
     draw_cursor();
@@ -118,6 +118,7 @@ pub unsafe fn draw_char(c: char)
 	{
 	    //let addr = START_ADDR + 4*(CURSOR_X + CURSOR_WIDTH - i + SCREEN_WIDTH*(CURSOR_Y + j));
 	    //let addr = START_ADDR + 4*(CURSOR_X + CURSOR_WIDTH + SCREEN_WIDTH*CURSOR_Y) - 4*i + 4*SCREEN_WIDTH*j
+            // upside-down text
 	    // if ((map[(CURSOR_HEIGHT - j)] >> 4*(CURSOR_WIDTH - i)) & 1) == 1
 	    if ((map[j] >> 4*i) & 1) == 1
             {
