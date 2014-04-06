@@ -8,12 +8,26 @@ use kernel::*;
 use super::super::platform::*;
 use kernel::memory::Allocator;
 
-
 pub static mut buff_str : c_string = c_string {
     start_ptr: 0 as *mut u8,
     next_index: 0,
     max_length: 0
 };
+
+pub static mut file_sys: Linked_list = Linked_list {
+    start: 0 as *mut List_Node,
+    end: 0 as *mut List_Node,
+    length: 0
+};
+
+pub static mut current_dir: c_string = c_string {
+    start_ptr: 0 as *mut u8,
+    next_index: 0,
+    max_length: 0
+};
+
+pub static mut next_pointer : *mut u8 = 0x000000 as *mut u8;
+pub static mut all_length : uint = 0;
 
 pub fn putchar(key: char) {
     unsafe {
@@ -36,7 +50,6 @@ pub unsafe fn drawstr(msg: &str) {
     for c in slice::iter(as_bytes(msg)) {
 	drawchar(*c as char);
     }
-    //super::super::io::set_fg(0x00FFAAFF);
 }
 
 unsafe fn drawchar(x: char)
@@ -64,11 +77,12 @@ unsafe fn backspace()
     io::draw_cursor();
 }
 
-pub unsafe fn interpret(mut cmd: c_string) {
-    //let mut cmd = command.splitn(' ', 1).nth(0).expect("no command");
-    //let mut cmd = command.split(0);
+pub unsafe fn interpret(mut cmd_str: c_string) {
+    let (x, y) = cmd_str.split(' ');
+    let mut cmd = x;
+    let mut args = y;
     if (cmd.eq(&"echo")) {
-        drawstr(&"echo");
+        args.print();
     }
     else if (cmd.eq(&"ls")) {
         drawstr(&"ls");
@@ -86,41 +100,16 @@ pub unsafe fn interpret(mut cmd: c_string) {
         drawstr(&"mkdir");
     }
     else if (cmd.eq(&"pwd")) {
-        drawstr(&"pwd");
+        current_dir.print();
     }
     else if (cmd.eq(&"wr")) {
         drawstr(&"wr");
     }
-/*    else if (cmd.eq(&"change")){
-    	drawstr(&"change");
-	let mut second_command = blah blah blah;
-	let mut third_command = blah blah blah;
-	match third_command {
-	     "black"	=> { third_command = "0x000000"}
-	     "red"	=> { third_command = "0xFF0000"}
-	     "orange"	=> { third_command = "0XFF8000"}
-	     "yellow"	=> { third_command = "0xFFFF00"}
-	     "white"	=> { third_command = "0xFFFFFF"}
-	     "blue"	=> { third_command = "0x0000FF"}
-	     _		=> { continue;}
-	}
-	match second_command {
-	     "-b"	=> { super::super::io::set_bg(third_command)}	//change background color
-	     "-f"	=> { super::super::io::set_fg(third_command)}	//change letter color
-			
-	     "-c"	=> { super::super::io::set_cursor_color(third_command)}	//change cursor color
-	     ""		=> { continue; }
-	}
-    }
-*/
     else {
         drawstr(&"invalid command: ");
         cmd.print();
+        drawstr(&"\n");
     }
-}
-
-pub unsafe fn change(cmd: &str){
-
 }
 
 pub unsafe fn parsekey(x: char) {
@@ -199,10 +188,17 @@ fn screen() {
 }
 
 pub unsafe fn init() {
-    buff_str = c_string::new(100);
+    let (x, y) = heap.alloc(20);
+    buff_str = c_string::new(10);
+    file_sys = Linked_list::new();
+    current_dir = c_string::new(10);
+    current_dir.addStr(&"home");
+    current_dir.print();
     screen();
     putstr(&"sgash>");
 }
+
+// c_string struct
 
 struct c_string {
     start_ptr: *mut u8,
@@ -212,22 +208,46 @@ struct c_string {
 
 impl c_string {
     pub unsafe fn new(size: uint) -> c_string {
-        let (start, length) = heap.alloc(size+1);
-        let retVal = c_string {
-            start_ptr: start,
+        let (x, y) = heap.alloc(size);
+        let mut retVal = c_string {
+            start_ptr: x,
             next_index: 0,
-            max_length: length
+            max_length: y
         };
+        next_pointer = (next_pointer as uint + size) as *mut u8;
         *((retVal.start_ptr as uint + retVal.next_index) as *mut char) = '\0';
         retVal
+    }
+    pub unsafe fn from_str(fname: &str) -> c_string {
+        let (x, y) = heap.alloc(255);
+        let mut retVal = c_string {
+            start_ptr: x,
+            next_index: 0,
+            max_length: y
+        };
+        next_pointer = (next_pointer as uint + 10) as *mut u8;
+        for c in slice::iter(as_bytes(fname)) {
+            retVal.addChar(*c as u8);
+        }
+        retVal
+    }
+    unsafe fn addStr(&mut self, addStr: &str) -> bool {
+        let mut result = false;
+        for c in slice::iter(as_bytes(addStr)) {
+            result = self.addChar(*c);
+            if (result == false) {
+                break;
+            }
+        }
+        result
     }
     unsafe fn addChar(&mut self, c: u8) -> bool {
         if (self.next_index == self.max_length) {
             false
         }
         else {
-            *((self.start_ptr as uint + self.next_index) as *mut char) = c as char;
-            self.next_index += 1;
+            *((self.start_ptr as uint + self.next_index) as *mut u8) = c;
+            self.next_index = self.next_index + 1;
             *((self.start_ptr as uint + self.next_index) as *mut char) = '\0';
             true
         }
@@ -249,13 +269,13 @@ impl c_string {
     }
     unsafe fn print(&mut self) {
         let mut i : uint = 0;
-        while (i < self.max_length) {
+        while (i < self.next_index) {
             let c = (self.start_ptr as uint + i) as *mut char;
             if (*c == '\0') {
                 break;
             }
             else {
-                putchar(*c);
+                // putchar(*c);
                 drawchar(*c);
             }
             i += 1;
@@ -276,27 +296,91 @@ impl c_string {
         }
         result
     }
-
-    unsafe fn split(&self, delim: char) -> (c_string, c_string) {
-		let mut selfp: uint = self.start_ptr as uint;
-		let mut first = c_string::new(256);
-		let mut second = c_string::new(256);
-		let mut found = false;
-		loop {
-			if (*(selfp as *char) == '\0') { 
-				return (first, second);
-			}
-			else if (*(selfp as *u8) == delim as u8) {
-				found = true;
-			}
-			else if (!found) {
-				first.addChar(*(selfp as *u8));
-			}
-			else if (found) {
-				second.addChar(*(selfp as *u8));
-			};
-			selfp += 1;
-		}
+    unsafe fn split(&self, c: char) -> (c_string, c_string) {
+        let mut start_pointer: uint = self.start_ptr as uint;
+        let (x, y) = heap.alloc(20);
+        let mut first = c_string::new(20);
+        let mut second = c_string::new(20);
+        let mut found = false;
+        loop {
+            if (*(start_pointer as *char) == '\0') {
+                return (first, second);
+            }
+            else if (*(start_pointer as *u8) == c as u8) {
+                found = true;
+            }
+            else if (!found) {
+                first.addChar(*(start_pointer as *u8));
+            }
+            else if (found) {
+                second.addChar(*(start_pointer as *u8));
+            }
+            start_pointer += 1;
+        }
     }
+}
 
+// Linked_list implementation
+
+pub static null_ptr: uint = 0xFFFFFF;
+
+struct List_Node {
+    name: *c_string,
+    prev: *mut List_Node,
+    next: *mut List_Node,
+    parent: *mut List_Node,
+    children: *Linked_list
+}
+
+impl List_Node {
+    pub fn newFile(fname: c_string) -> List_Node {
+        let retVal = List_Node {
+            name: &fname,
+            prev: null_ptr as *mut List_Node,
+            next: null_ptr as *mut List_Node,
+            parent: null_ptr as *mut List_Node,
+            children: null_ptr as *Linked_list
+        };
+        retVal
+    }
+    pub unsafe fn newDir(fname: c_string) -> List_Node {
+        let retVal = List_Node {
+            name: &fname,
+            prev: null_ptr as *mut List_Node,
+            next: null_ptr as *mut List_Node,
+            parent: null_ptr as *mut List_Node,
+            children: &(Linked_list::new()) as *Linked_list
+        };
+        retVal
+    }
+    fn isFile(&mut self) -> bool {
+        if (self.children as uint == 0xFFFFFF) {
+            true
+        }
+        else {
+            false
+        }
+    }
+}
+
+struct Linked_list {
+    start: *mut List_Node,
+    end: *mut List_Node,
+    length: uint
+}
+
+impl Linked_list {
+    pub fn new() -> Linked_list {
+        let retVal = Linked_list {
+            start: null_ptr as *mut List_Node,
+            end: null_ptr as *mut List_Node,
+            length: 0
+        };
+        retVal
+    }
+    unsafe fn add_Node(&mut self, x: *mut List_Node) {
+        (*self.end).next = x;
+        self.end = x;
+        self.length += 1;
+    }
 }
