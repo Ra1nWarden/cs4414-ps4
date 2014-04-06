@@ -26,9 +26,6 @@ pub static mut current_dir: c_string = c_string {
     max_length: 0
 };
 
-pub static mut next_pointer : *mut u8 = 0x000000 as *mut u8;
-pub static mut all_length : uint = 0;
-
 pub fn putchar(key: char) {
     unsafe {
 	/*
@@ -108,7 +105,6 @@ pub unsafe fn interpret(mut cmd_str: c_string) {
     else {
         drawstr(&"invalid command: ");
         cmd.print();
-        drawstr(&"\n");
     }
 }
 
@@ -191,6 +187,9 @@ pub unsafe fn init() {
     let (x, y) = heap.alloc(20);
     buff_str = c_string::new(10);
     file_sys = Linked_list::new();
+    let mut homestr = c_string::from_str(&"home");
+    let mut home = List_Node::newDir(&mut homestr);
+    file_sys.add_Node(&mut home);
     current_dir = c_string::new(10);
     current_dir.addStr(&"home");
     current_dir.print();
@@ -214,18 +213,16 @@ impl c_string {
             next_index: 0,
             max_length: y
         };
-        next_pointer = (next_pointer as uint + size) as *mut u8;
         *((retVal.start_ptr as uint + retVal.next_index) as *mut char) = '\0';
         retVal
     }
     pub unsafe fn from_str(fname: &str) -> c_string {
-        let (x, y) = heap.alloc(255);
+        let (x, y) = heap.alloc(20);
         let mut retVal = c_string {
             start_ptr: x,
             next_index: 0,
             max_length: y
         };
-        next_pointer = (next_pointer as uint + 10) as *mut u8;
         for c in slice::iter(as_bytes(fname)) {
             retVal.addChar(*c as u8);
         }
@@ -325,31 +322,32 @@ impl c_string {
 pub static null_ptr: uint = 0xFFFFFF;
 
 struct List_Node {
-    name: *c_string,
+    name: *mut c_string,
     prev: *mut List_Node,
     next: *mut List_Node,
     parent: *mut List_Node,
-    children: *Linked_list
+    children: *mut Linked_list
 }
 
 impl List_Node {
-    pub fn newFile(fname: c_string) -> List_Node {
-        let retVal = List_Node {
-            name: &fname,
+    pub fn newFile(fname: *mut c_string) -> List_Node {
+        let mut retVal = List_Node {
+            name: fname,
             prev: null_ptr as *mut List_Node,
             next: null_ptr as *mut List_Node,
             parent: null_ptr as *mut List_Node,
-            children: null_ptr as *Linked_list
+            children: null_ptr as *mut Linked_list
         };
         retVal
     }
-    pub unsafe fn newDir(fname: c_string) -> List_Node {
-        let retVal = List_Node {
-            name: &fname,
+    pub fn newDir(fname: *mut c_string) -> List_Node {
+        let mut children_list = Linked_list::new();
+        let mut retVal = List_Node {
+            name: fname,
             prev: null_ptr as *mut List_Node,
             next: null_ptr as *mut List_Node,
             parent: null_ptr as *mut List_Node,
-            children: &(Linked_list::new()) as *Linked_list
+            children: &mut children_list
         };
         retVal
     }
@@ -379,8 +377,18 @@ impl Linked_list {
         retVal
     }
     unsafe fn add_Node(&mut self, x: *mut List_Node) {
-        (*self.end).next = x;
-        self.end = x;
-        self.length += 1;
+        if (self.start as uint == null_ptr) {
+            self.start = x;
+            self.end = x;
+            self.length = 1;
+        }
+        else {
+            (*self.end).next = x;
+            (*x).prev = self.end;
+            self.end = x;
+            self.length += 1;
+        }
     }
 }
+
+// file system
