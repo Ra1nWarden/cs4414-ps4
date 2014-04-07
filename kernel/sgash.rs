@@ -300,7 +300,7 @@ impl c_string {
             i += 1;
         }
     }
-    unsafe fn eq(&mut self, cmp_str: &str) -> bool{
+    unsafe fn eq(&mut self, cmp_str: &str) -> bool {
         let mut running_index = self.start_ptr;
         let mut result = true;
         for itr in slice::iter(as_bytes(cmp_str)) {
@@ -314,6 +314,22 @@ impl c_string {
             result = false;
         }
         result
+    }
+    unsafe fn cmp(&mut self, cmp_str: c_string) -> bool {
+        if (self.next_index != cmp_str.next_index) {
+            return false;
+        }
+        let mut runningIndex : uint = 0;
+        let mut first_ptr = self.start_ptr;
+        let mut second_ptr = cmp_str.start_ptr;
+        while (runningIndex < self.next_index) {
+            if (*(first_ptr as *mut char) != *(second_ptr as *mut char)) {
+                return false;
+            }
+            first_ptr = (first_ptr as uint + 1) as *mut u8;
+            second_ptr = (second_ptr as uint + 1) as *mut u8;
+        }
+        true
     }
     unsafe fn split(&self, c: char) -> (c_string, c_string) {
         let mut start_pointer: uint = self.start_ptr as uint;
@@ -454,6 +470,19 @@ impl Linked_list {
             (*x).next = null_ptr as *mut List_Node;
             self.end = x;
             self.length += 1;
+        }
+    }
+    unsafe fn remove_Node(&mut self, fname: *mut c_string) {
+        let mut index : uint = 0;
+        let mut currentNode = self.start;
+        while (index < self.length) {
+            if ((*(*currentNode).name).cmp(*fname)) {
+                (*(*currentNode).prev).next = (*currentNode).next;
+                (*(*currentNode).next).prev = (*currentNode).prev;
+                return;
+            }
+            index += 1;
+            currentNode = (*currentNode).next;
         }
     }
     unsafe fn print_list(&mut self) {

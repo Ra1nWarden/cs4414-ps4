@@ -1,3 +1,5 @@
 1. problem with addChar and memory allocation
 2. heap.alloc allocates the same memeory address (c_string::new(10) straight away)
-3. 
+3. Linked list works in init() but not as a static field. start node keeps being overriden for no apparent reason.
+4. change color crashes after two changes.
+5. regarding problem 8: buddy block memeory management merge two adjacent free blocks to form one big free block and do a recursive call.
