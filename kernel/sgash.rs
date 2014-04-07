@@ -102,6 +102,9 @@ pub unsafe fn interpret(mut cmd_str: c_string) {
     else if (cmd.eq(&"wr")) {
         drawstr(&"wr");
     }
+    else if (cmd.eq(&"change")){
+	change(args);
+    }
     else {
         drawstr(&"invalid command: ");
         cmd.print();
@@ -317,6 +320,47 @@ impl c_string {
     }
 }
 
+
+pub unsafe fn change(cmd_str: c_string){
+	let (x, y) = cmd_str.split(' ');
+	let mut flag = y;
+	let mut args = x;
+	let mut color: u32 = 0x000000;
+
+	if (args.eq(&"black")) {super::super::io::set_fg(0x000000);}
+	else if (args.eq(&"blue")) {super::super::io::set_fg(0xFF0000);}
+	else if (args.eq(&"red")) {super::super::io::set_fg(0x0008FF);}
+	else if (args.eq(&"yellow")) {super::super::io::set_fg(0x00FFFF);}
+	else if (args.eq(&"white")) {super::super::io::set_fg(0xFFFFFF);}
+	else if (args.eq(&"aqua")) {super::super::io::set_fg(0xFFFF00);}
+	else if (args.eq(&"lime")) {super::super::io::set_fg(0x00FF00);}
+	else if (args.eq(&"silver")) {super::super::io::set_fg(0xC0C0C0);}
+	else if (args.eq(&"purple")) {super::super::io::set_fg(0x800080);}
+	flag.print();
+/*
+	if (args.eq(&"black")) {color = 0x000000;}
+	else if (args.eq(&"blue")) {color = 0xFF0000;}
+	else if (args.eq(&"orange")) {color = 0x0008FF;}
+	else if (args.eq(&"yellow")) {color = 0x00FFFF;}
+	else if (args.eq(&"white")) {color = 0xFFFFFF;}
+	else if (args.eq(&"red")) {color = 0x0000FF;}
+	else if (args.eq(&"lime")) {color = 0x00FF00;}
+
+	if (flag.eq(&"-b")) {
+	     super::super::io::set_bg(color)
+	}	//change background color
+	else if (flag.eq(&"-f")) {
+	     super::super::io::set_fg(color)
+	}	//change letter color
+			
+	else if (flag.eq(&"-c")) { 
+	     super::super::io::set_cursor_color(color)
+	}	//change cursor color
+*/
+
+}
+
+ 
 // Linked_list implementation
 
 pub static null_ptr: uint = 0xFFFFFF;
